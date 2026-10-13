@@ -1,0 +1,795 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Inventory Audit and Reconciliation Tool for tracking stock discrepancies, reviewing audit results, and exporting reports.">
+  <title>Inventory Audit &amp; Reconciliation Tool</title>
+  <style>
+    :root {
+      --navy: #142b49;
+      --blue: #2457a7;
+      --blue-light: #eaf1fc;
+      --background: #f4f7fb;
+      --white: #ffffff;
+      --text: #243247;
+      --muted: #64748b;
+      --border: #dce4ee;
+      --green: #18794e;
+      --green-bg: #e8f6ee;
+      --red: #b42318;
+      --red-bg: #fef0ef;
+      --amber: #965f00;
+      --amber-bg: #fff4d6;
+      --shadow: 0 4px 18px rgba(20, 43, 73, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 26px 5%;
+    }
+
+    .header-inner, main {
+      max-width: 1450px;
+      margin: 0 auto;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.55rem, 3vw, 2.2rem);
+    }
+
+    header p {
+      margin: 0;
+      color: #d8e4f5;
+    }
+
+    main { padding: 26px 5% 45px; }
+
+    .toolbar, .panel, .kpi {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar {
+      padding: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    button, .file-label {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: var(--blue);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+    }
+
+    button:hover, .file-label:hover { filter: brightness(1.08); }
+    button.secondary { background: #e9eef6; color: var(--navy); }
+    button.danger { background: #fff0ef; color: var(--red); }
+    button:focus-visible, input:focus-visible, select:focus-visible,
+    .file-label:focus-within {
+      outline: 3px solid #83b4ff;
+      outline-offset: 2px;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .toolbar .spacer { flex: 1; }
+    .file-label { background: var(--blue); }
+
+    .notice {
+      background: var(--blue-light);
+      color: var(--navy);
+      border: 1px solid #cbdcf7;
+      border-radius: 9px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+      font-size: 0.92rem;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 15px;
+      margin-bottom: 22px;
+    }
+
+    .kpi { padding: 18px; }
+    .kpi-label { color: var(--muted); font-size: 0.88rem; font-weight: 700; }
+    .kpi-value { font-size: 1.9rem; font-weight: 800; margin-top: 6px; }
+    .kpi-sub { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+
+    .panel { padding: 20px; margin-bottom: 22px; }
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    h2 { font-size: 1.2rem; margin: 0; color: var(--navy); }
+    h3 { font-size: 1rem; margin: 0 0 12px; color: var(--navy); }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: var(--muted);
+    }
+
+    .field input, .field select, .inline-input {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 9px 10px;
+      background: white;
+      color: var(--text);
+      font: inherit;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 900px;
+      font-size: 0.88rem;
+    }
+
+    th, td {
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f0f4fa;
+      color: #34445a;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #f8fbff; }
+    td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+    th.numeric { text-align: right; }
+    .positive { color: var(--green); font-weight: 700; }
+    .negative { color: var(--red); font-weight: 700; }
+    .zero { color: var(--muted); }
+
+    .status {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status.review { background: var(--amber-bg); color: var(--amber); }
+    .status.clear { background: var(--green-bg); color: var(--green); }
+    .status.resolved { background: var(--blue-light); color: var(--blue); }
+    .status.open { background: var(--red-bg); color: var(--red); }
+
+    .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .row-actions button { min-height: 32px; padding: 6px 9px; font-size: 0.78rem; }
+    .row-actions button.secondary { background: #e9eef6; color: var(--navy); }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px;
+    }
+
+    .history-item {
+      display: grid;
+      grid-template-columns: 165px 1fr;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+
+    .history-item:last-child { border-bottom: 0; }
+    .history-time { color: var(--muted); }
+    .history-message { overflow-wrap: anywhere; }
+
+    .small-note { color: var(--muted); font-size: 0.84rem; }
+    footer { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 10px 0 0; }
+
+    @media (max-width: 900px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .filters .field:first-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 560px) {
+      main { padding: 18px 4% 32px; }
+      header { padding: 22px 4%; }
+      .kpis { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .kpi { padding: 13px; }
+      .kpi-value { font-size: 1.5rem; }
+      .filters { grid-template-columns: 1fr; }
+      .filters .field:first-child { grid-column: auto; }
+      .history-item { grid-template-columns: 1fr; gap: 2px; }
+      .toolbar .spacer { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Inventory Audit &amp; Reconciliation Tool</h1>
+      <p>Compare expected stock with physical counts, flag discrepancies, and document audit decisions.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <label class="file-label" for="csvFile">Import inventory CSV</label>
+      <input id="csvFile" type="file" accept=".csv,text/csv">
+      <button id="exportCsvBtn" type="button">Export report CSV</button>
+      <button id="exportHistoryBtn" type="button" class="secondary">Export audit history</button>
+      <button id="addItemBtn" type="button" class="secondary">+ Add inventory item</button>
+      <span class="spacer"></span>
+      <button id="resetBtn" type="button" class="danger">Reset sample data</button>
+    </div>
+
+    <div class="notice" id="notice" role="status" aria-live="polite">
+      Sample data is loaded. Edit a counted quantity to recalculate its discrepancy automatically.
+      Imported files should include item_id, item_name, location, expected_qty, and counted_qty columns.
+    </div>
+
+    <section class="kpis" aria-label="Audit summary">
+      <article class="kpi">
+        <div class="kpi-label">Inventory Items</div>
+        <div class="kpi-value" id="totalItems">0</div>
+        <div class="kpi-sub">Items in the current audit</div>
+      </article>
+      <article class="kpi">
+        <div class="kpi-label">Items Requiring Review</div>
+        <div class="kpi-value" id="reviewItems">0</div>
+        <div class="kpi-sub">Unresolved stock discrepancies</div>
+      </article>
+      <article class="kpi">
+        <div class="kpi-label">Net Variance</div>
+        <div class="kpi-value" id="netVariance">0</div>
+        <div class="kpi-sub">Counted quantity minus expected quantity</div>
+      </article>
+      <article class="kpi">
+        <div class="kpi-label">Audit Completion</div>
+        <div class="kpi-value" id="completion">0%</div>
+        <div class="kpi-sub">Items marked reviewed or resolved</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Inventory Reconciliation</h2>
+        <span class="small-note" id="visibleCount">0 items shown</span>
+      </div>
+
+      <div class="filters">
+        <div class="field">
+          <label for="searchInput">Search inventory</label>
+          <input id="searchInput" type="search" placeholder="Search item ID, name, or location">
+        </div>
+        <div class="field">
+          <label for="statusFilter">Audit status</label>
+          <select id="statusFilter">
+            <option value="all">All statuses</option>
+            <option value="Review Required">Review Required</option>
+            <option value="Pending">Pending</option>
+            <option value="Reviewed">Reviewed</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="varianceFilter">Variance filter</label>
+          <select id="varianceFilter">
+            <option value="all">All quantities</option>
+            <option value="discrepancy">Discrepancies only</option>
+            <option value="zero">No discrepancy</option>
+            <option value="shortage">Shortages only</option>
+            <option value="overage">Overages only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item ID</th>
+              <th>Item Name</th>
+              <th>Location</th>
+              <th class="numeric">Expected</th>
+              <th class="numeric">Counted</th>
+              <th class="numeric">Variance</th>
+              <th>Review Flag</th>
+              <th>Audit Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBody"></tbody>
+        </table>
+      </div>
+      <p class="small-note">Variance = counted quantity − expected quantity. Negative values indicate shortages; positive values indicate overages.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Audit History</h2>
+        <span class="small-note">Recent actions are recorded during this browser session.</span>
+      </div>
+      <div id="historyList"></div>
+    </section>
+
+    <footer>Inventory Audit &amp; Reconciliation Tool · Demonstration project · Data stays in this browser session.</footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const sampleInventory = [
+      { item_id: "INV-1001", item_name: "Safety Gloves", location: "Warehouse A", expected_qty: 120, counted_qty: 120 },
+      { item_id: "INV-1002", item_name: "Shipping Boxes - Medium", location: "Warehouse A", expected_qty: 250, counted_qty: 238 },
+      { item_id: "INV-1003", item_name: "Barcode Scanners", location: "Warehouse B", expected_qty: 18, counted_qty: 20 },
+      { item_id: "INV-1004", item_name: "Packing Tape", location: "Warehouse A", expected_qty: 90, counted_qty: 90 },
+      { item_id: "INV-1005", item_name: "High-Visibility Vests", location: "Warehouse C", expected_qty: 45, counted_qty: 41 },
+      { item_id: "INV-1006", item_name: "Label Rolls", location: "Warehouse B", expected_qty: 75, counted_qty: 80 },
+      { item_id: "INV-1007", item_name: "First Aid Kits", location: "Warehouse C", expected_qty: 24, counted_qty: 24 },
+      { item_id: "INV-1008", item_name: "Pallet Wrap", location: "Warehouse A", expected_qty: 60, counted_qty: 54 }
+    ];
+
+    let inventory = [];
+    let history = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function cloneSampleData() {
+      return sampleInventory.map(item => ({ ...item, audit_status: "Pending" }));
+    }
+
+    function safeNumber(value, fieldName) {
+      const number = Number(value);
+      if (value === "" || value === null || value === undefined || !Number.isFinite(number) || number < 0 || !Number.isInteger(number)) {
+        throw new Error(fieldName + " must be a whole number greater than or equal to zero.");
+      }
+      return number;
+    }
+
+    function variance(item) {
+      return Number(item.counted_qty) - Number(item.expected_qty);
+    }
+
+    function hasDiscrepancy(item) {
+      return variance(item) !== 0;
+    }
+
+    function currentStatus(item) {
+      if (item.audit_status === "Resolved") return "Resolved";
+      if (hasDiscrepancy(item) && item.audit_status !== "Reviewed") return "Review Required";
+      return item.audit_status || "Pending";
+    }
+
+    function flagClass(item) {
+      return hasDiscrepancy(item) ? "review" : "clear";
+    }
+
+    function addHistory(message) {
+      history.unshift({ time: new Date().toLocaleString(), message });
+      history = history.slice(0, 200);
+      renderHistory();
+    }
+
+    function showNotice(message, isError = false) {
+      $("notice").textContent = message;
+      $("notice").style.background = isError ? "var(--red-bg)" : "var(--blue-light)";
+      $("notice").style.color = isError ? "var(--red)" : "var(--navy)";
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+    }
+
+    function renderKpis() {
+      const total = inventory.length;
+      const review = inventory.filter(item => hasDiscrepancy(item) && currentStatus(item) !== "Resolved").length;
+      const net = inventory.reduce((sum, item) => sum + variance(item), 0);
+      const completed = inventory.filter(item => ["Reviewed", "Resolved"].includes(currentStatus(item))).length;
+      $("totalItems").textContent = total;
+      $("reviewItems").textContent = review;
+      $("netVariance").textContent = net > 0 ? "+" + net : String(net);
+      $("netVariance").className = "kpi-value " + (net > 0 ? "positive" : net < 0 ? "negative" : "");
+      $("completion").textContent = (total ? Math.round(completed / total * 100) : 0) + "%";
+    }
+
+    function renderInventory() {
+      const search = $("searchInput").value.trim().toLowerCase();
+      const status = $("statusFilter").value;
+      const filter = $("varianceFilter").value;
+
+      const filtered = inventory.filter(item => {
+        const matchesSearch = [item.item_id, item.item_name, item.location].some(value =>
+          String(value).toLowerCase().includes(search)
+        );
+        const matchesStatus = status === "all" || currentStatus(item) === status;
+        const diff = variance(item);
+        const matchesVariance =
+          filter === "all" ||
+          (filter === "discrepancy" && diff !== 0) ||
+          (filter === "zero" && diff === 0) ||
+          (filter === "shortage" && diff < 0) ||
+          (filter === "overage" && diff > 0);
+        return matchesSearch && matchesStatus && matchesVariance;
+      });
+
+      $("visibleCount").textContent = filtered.length + " of " + inventory.length + " items shown";
+      const body = $("inventoryBody");
+
+      if (!filtered.length) {
+        body.innerHTML = '<tr><td class="empty" colspan="9">No inventory items match these filters.</td></tr>';
+        renderKpis();
+        return;
+      }
+
+      body.innerHTML = filtered.map(item => {
+        const diff = variance(item);
+        const diffClass = diff > 0 ? "positive" : diff < 0 ? "negative" : "zero";
+        const flag = hasDiscrepancy(item) ? "Review Required" : "No Discrepancy";
+        const statusNow = currentStatus(item);
+        const statusCss = statusNow === "Resolved" ? "resolved" :
+          statusNow === "Reviewed" ? "clear" :
+          statusNow === "Review Required" ? "review" : "open";
+
+        return `<tr>
+          <td>${escapeHtml(item.item_id)}</td>
+          <td>${escapeHtml(item.item_name)}</td>
+          <td>${escapeHtml(item.location)}</td>
+          <td class="numeric">${item.expected_qty}</td>
+          <td class="numeric">
+            <input class="inline-input counted-input" aria-label="Counted quantity for ${escapeHtml(item.item_id)}"
+              type="number" min="0" step="1" value="${item.counted_qty}" data-id="${escapeHtml(item.item_id)}" style="width:92px">
+          </td>
+          <td class="numeric ${diffClass}">${diff > 0 ? "+" : ""}${diff}</td>
+          <td><span class="status ${flagClass(item)}">${flag}</span></td>
+          <td><span class="status ${statusCss}">${statusNow}</span></td>
+          <td><div class="row-actions">
+            <button type="button" class="secondary review-btn" data-id="${escapeHtml(item.item_id)}">Mark reviewed</button>
+            <button type="button" class="resolve-btn" data-id="${escapeHtml(item.item_id)}">Resolve</button>
+          </div></td>
+        </tr>`;
+      }).join("");
+
+      renderKpis();
+    }
+
+    function renderHistory() {
+      const list = $("historyList");
+      if (!history.length) {
+        list.innerHTML = '<p class="empty">No audit actions recorded yet. Changes, reviews, and resolutions will appear here.</p>';
+        return;
+      }
+
+      list.innerHTML = history.map(entry => `
+        <div class="history-item">
+          <div class="history-time">${escapeHtml(entry.time)}</div>
+          <div class="history-message">${escapeHtml(entry.message)}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderAll() {
+      renderInventory();
+      renderKpis();
+      renderHistory();
+    }
+
+    function findItem(id) {
+      return inventory.find(item => item.item_id === id);
+    }
+
+    function updateCount(id, rawValue) {
+      const item = findItem(id);
+      if (!item) return;
+
+      let count;
+      try {
+        count = safeNumber(rawValue, "Counted quantity");
+      } catch (error) {
+        showNotice(error.message, true);
+        renderInventory();
+        return;
+      }
+
+      const previous = item.counted_qty;
+      if (previous === count) return;
+
+      item.counted_qty = count;
+      if (item.audit_status === "Reviewed" || item.audit_status === "Resolved") {
+        item.audit_status = "Pending";
+      }
+      addHistory(`${item.item_id} (${item.item_name}): counted quantity changed from ${previous} to ${count}; variance is now ${variance(item)}.`);
+      showNotice("Count updated. Discrepancy calculations and audit status have been refreshed.");
+      renderAll();
+    }
+
+    function markReviewed(id) {
+      const item = findItem(id);
+      if (!item) return;
+      item.audit_status = "Reviewed";
+      addHistory(`${item.item_id} (${item.item_name}) marked reviewed. Variance: ${variance(item)}.`);
+      showNotice(item.item_id + " marked reviewed.");
+      renderAll();
+    }
+
+    function resolveItem(id) {
+      const item = findItem(id);
+      if (!item) return;
+      item.audit_status = "Resolved";
+      addHistory(`${item.item_id} (${item.item_name}) marked resolved. Final recorded variance: ${variance(item)}.`);
+      showNotice(item.item_id + " marked resolved.");
+      renderAll();
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function downloadCsv(filename, rows) {
+      const csv = rows.map(row => row.map(csvEscape).join(",")).join("\r\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportReport() {
+      const rows = [
+        ["item_id", "item_name", "location", "expected_qty", "counted_qty", "variance", "review_flag", "audit_status"],
+        ...inventory.map(item => [
+          item.item_id, item.item_name, item.location, item.expected_qty,
+          item.counted_qty, variance(item),
+          hasDiscrepancy(item) ? "Review Required" : "No Discrepancy",
+          currentStatus(item)
+        ])
+      ];
+      downloadCsv("inventory-audit-report.csv", rows);
+      addHistory("Exported inventory audit report CSV (" + inventory.length + " items).");
+      showNotice("Inventory report exported as CSV.");
+    }
+
+    function exportAuditHistory() {
+      const rows = [["timestamp", "action"], ...history.slice().reverse().map(entry => [entry.time, entry.message])];
+      downloadCsv("inventory-audit-history.csv", rows);
+      showNotice("Audit history exported as CSV.");
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], cell = "", quoted = false;
+      const input = text.replace(/^\uFEFF/, "");
+
+      for (let i = 0; i < input.length; i++) {
+        const char = input[i];
+        if (quoted) {
+          if (char === '"' && input[i + 1] === '"') {
+            cell += '"';
+            i++;
+          } else if (char === '"') {
+            quoted = false;
+          } else {
+            cell += char;
+          }
+        } else if (char === '"' && cell === "") {
+          quoted = true;
+        } else if (char === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (char === "\n") {
+          row.push(cell.replace(/\r$/, ""));
+          if (row.some(value => value.trim() !== "")) rows.push(row);
+          row = [];
+          cell = "";
+        } else {
+          cell += char;
+        }
+      }
+
+      if (quoted) throw new Error("The CSV file contains an unclosed quoted field.");
+      row.push(cell.replace(/\r$/, ""));
+      if (row.some(value => value.trim() !== "")) rows.push(row);
+      return rows;
+    }
+
+    async function importCsv(file) {
+      if (!file) return;
+
+      try {
+        const rows = parseCsv(await file.text());
+        if (rows.length < 2) throw new Error("The CSV file must contain a header row and at least one inventory item.");
+
+        const headers = rows[0].map(header => header.trim().toLowerCase());
+        const required = ["item_id", "item_name", "location", "expected_qty", "counted_qty"];
+        const missing = required.filter(name => !headers.includes(name));
+        if (missing.length) throw new Error("Missing required CSV columns: " + missing.join(", "));
+
+        const index = name => headers.indexOf(name);
+        const ids = new Set();
+
+        const imported = rows.slice(1).map((row, rowIndex) => {
+          const value = name => (row[index(name)] ?? "").trim();
+          const item = {
+            item_id: value("item_id"),
+            item_name: value("item_name"),
+            location: value("location"),
+            expected_qty: safeNumber(value("expected_qty"), "Expected quantity on CSV row " + (rowIndex + 2)),
+            counted_qty: safeNumber(value("counted_qty"), "Counted quantity on CSV row " + (rowIndex + 2)),
+            audit_status: "Pending"
+          };
+
+          if (!item.item_id || !item.item_name || !item.location) {
+            throw new Error("CSV row " + (rowIndex + 2) + " is missing an item ID, item name, or location.");
+          }
+          if (ids.has(item.item_id)) throw new Error("Duplicate item ID in CSV: " + item.item_id);
+          ids.add(item.item_id);
+          return item;
+        });
+
+        if (!imported.length) throw new Error("No inventory items were found in the CSV.");
+        inventory = imported;
+        addHistory("Imported " + imported.length + " inventory items from " + file.name + ".");
+        renderAll();
+        showNotice("Successfully imported " + imported.length + " inventory items. Previous inventory data was replaced.");
+      } catch (error) {
+        showNotice("Import failed: " + error.message, true);
+      } finally {
+        $("csvFile").value = "";
+      }
+    }
+
+    function addInventoryItem() {
+      const itemId = prompt("Enter a unique item ID (example: INV-2001):");
+      if (itemId === null) return;
+      const cleanId = itemId.trim();
+      if (!cleanId) {
+        showNotice("Item ID cannot be blank.", true);
+        return;
+      }
+      if (findItem(cleanId)) {
+        showNotice("That item ID already exists. Choose a unique ID.", true);
+        return;
+      }
+
+      const name = prompt("Enter the item name:");
+      if (name === null) return;
+      if (!name.trim()) {
+        showNotice("Item name cannot be blank.", true);
+        return;
+      }
+
+      const location = prompt("Enter the storage location:");
+      if (location === null) return;
+      if (!location.trim()) {
+        showNotice("Location cannot be blank.", true);
+        return;
+      }
+
+      const expectedRaw = prompt("Enter the expected quantity (whole number, 0 or higher):", "0");
+      if (expectedRaw === null) return;
+      const countedRaw = prompt("Enter the counted quantity (whole number, 0 or higher):", expectedRaw);
+      if (countedRaw === null) return;
+
+      try {
+        inventory.push({
+          item_id: cleanId,
+          item_name: name.trim(),
+          location: location.trim(),
+          expected_qty: safeNumber(expectedRaw, "Expected quantity"),
+          counted_qty: safeNumber(countedRaw, "Counted quantity"),
+          audit_status: "Pending"
+        });
+        addHistory("Added inventory item " + cleanId + " (" + name.trim() + ").");
+        renderAll();
+        showNotice("Added inventory item " + cleanId + ".");
+      } catch (error) {
+        showNotice(error.message + " No item was added; please try again.", true);
+      }
+    }
+
+    $("inventoryBody").addEventListener("change", event => {
+      if (event.target.classList.contains("counted-input")) {
+        updateCount(event.target.dataset.id, event.target.value);
+      }
+    });
+
+    $("inventoryBody").addEventListener("click", event => {
+      const reviewButton = event.target.closest(".review-btn");
+      const resolveButton = event.target.closest(".resolve-btn");
+      if (reviewButton) markReviewed(reviewButton.dataset.id);
+      if (resolveButton) resolveItem(resolveButton.dataset.id);
+    });
+
+    $("searchInput").addEventListener("input", renderInventory);
+    $("statusFilter").addEventListener("change", renderInventory);
+    $("varianceFilter").addEventListener("change", renderInventory);
+    $("csvFile").addEventListener("change", event => importCsv(event.target.files[0]));
+    $("exportCsvBtn").addEventListener("click", exportReport);
+    $("exportHistoryBtn").addEventListener("click", exportAuditHistory);
+    $("addItemBtn").addEventListener("click", addInventoryItem);
+
+    $("resetBtn").addEventListener("click", () => {
+      if (!confirm("Reset the inventory to the original sample data and clear this session's audit history?")) return;
+      inventory = cloneSampleData();
+      history = [];
+      addHistory("Reset inventory to the original sample dataset.");
+      renderAll();
+      showNotice("Sample inventory restored. Previous session history was cleared.");
+    });
+
+    inventory = cloneSampleData();
+    renderAll();
+    addHistory("Loaded " + inventory.length + " sample inventory items.");
+  </script>
+</body>
+</html>
