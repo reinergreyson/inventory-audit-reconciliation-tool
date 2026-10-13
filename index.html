@@ -287,8 +287,7 @@
     </div>
 
     <div class="notice" id="notice" role="status" aria-live="polite">
-      Sample data is loaded. Edit a counted quantity to recalculate its discrepancy automatically.
-      Imported files should include item_id, item_name, location, expected_qty, and counted_qty columns.
+      Loading inventory data...
     </div>
 
     <section class="kpis" aria-label="Audit summary">
@@ -371,12 +370,12 @@
     <section class="panel">
       <div class="panel-heading">
         <h2>Audit History</h2>
-        <span class="small-note">Recent actions are recorded during this browser session.</span>
+        <span class="small-note">Recent actions are saved in this browser.</span>
       </div>
       <div id="historyList"></div>
     </section>
 
-    <footer>Inventory Audit &amp; Reconciliation Tool · Demonstration project · Data stays in this browser session.</footer>
+    <footer>Inventory Audit &amp; Reconciliation Tool · Demonstration project · Inventory and audit history are saved in this browser.</footer>
   </main>
 
   <script>
@@ -396,7 +395,68 @@
     let inventory = [];
     let history = [];
 
+    // Store this project's data under a dedicated browser-storage key.
+    const STORAGE_KEY = "inventoryAuditReconciliationState";
+
     const $ = (id) => document.getElementById(id);
+
+    function saveState() {
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ inventory, history })
+        );
+        return true;
+      } catch (error) {
+        console.warn("Could not save audit data in this browser.", error);
+        return false;
+      }
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (!saved) return false;
+
+        const parsed = JSON.parse(saved);
+
+        if (
+          !parsed ||
+          !Array.isArray(parsed.inventory) ||
+          !Array.isArray(parsed.history)
+        ) {
+          return false;
+        }
+
+        // Validate the stored inventory before using it.
+        const validInventory = parsed.inventory.every(item =>
+          item &&
+          typeof item.item_id === "string" &&
+          typeof item.item_name === "string" &&
+          typeof item.location === "string" &&
+          Number.isInteger(Number(item.expected_qty)) &&
+          Number(item.expected_qty) >= 0 &&
+          Number.isInteger(Number(item.counted_qty)) &&
+          Number(item.counted_qty) >= 0
+        );
+
+        const validHistory = parsed.history.every(entry =>
+          entry &&
+          typeof entry.time === "string" &&
+          typeof entry.message === "string"
+        );
+
+        if (!validInventory || !validHistory) return false;
+
+        inventory = parsed.inventory;
+        history = parsed.history.slice(0, 200);
+        return true;
+      } catch (error) {
+        console.warn("Could not load saved audit data.", error);
+        return false;
+      }
+    }
 
     function cloneSampleData() {
       return sampleInventory.map(item => ({ ...item, audit_status: "Pending" }));
@@ -431,7 +491,18 @@
     function addHistory(message) {
       history.unshift({ time: new Date().toLocaleString(), message });
       history = history.slice(0, 200);
+
+      // Save both inventory and history after each recorded action.
+      const saved = saveState();
+
       renderHistory();
+
+      if (!saved) {
+        showNotice(
+          "Warning: changes are visible, but this browser could not save them. They may be lost after refreshing.",
+          true
+        );
+      }
     }
 
     function showNotice(message, isError = false) {
@@ -564,7 +635,7 @@
         item.audit_status = "Pending";
       }
       addHistory(`${item.item_id} (${item.item_name}): counted quantity changed from ${previous} to ${count}; variance is now ${variance(item)}.`);
-      showNotice("Count updated. Discrepancy calculations and audit status have been refreshed.");
+      showNotice("Count updated and saved in this browser. Discrepancy calculations and audit status have been refreshed.");
       renderAll();
     }
 
@@ -573,7 +644,7 @@
       if (!item) return;
       item.audit_status = "Reviewed";
       addHistory(`${item.item_id} (${item.item_name}) marked reviewed. Variance: ${variance(item)}.`);
-      showNotice(item.item_id + " marked reviewed.");
+      showNotice(item.item_id + " marked reviewed and saved.");
       renderAll();
     }
 
@@ -582,7 +653,7 @@
       if (!item) return;
       item.audit_status = "Resolved";
       addHistory(`${item.item_id} (${item.item_name}) marked resolved. Final recorded variance: ${variance(item)}.`);
-      showNotice(item.item_id + " marked resolved.");
+      showNotice(item.item_id + " marked resolved and saved.");
       renderAll();
     }
 
@@ -700,7 +771,7 @@
         inventory = imported;
         addHistory("Imported " + imported.length + " inventory items from " + file.name + ".");
         renderAll();
-        showNotice("Successfully imported " + imported.length + " inventory items. Previous inventory data was replaced.");
+        showNotice("Successfully imported " + imported.length + " inventory items. Your imported inventory is saved in this browser.");
       } catch (error) {
         showNotice("Import failed: " + error.message, true);
       } finally {
@@ -751,7 +822,7 @@
         });
         addHistory("Added inventory item " + cleanId + " (" + name.trim() + ").");
         renderAll();
-        showNotice("Added inventory item " + cleanId + ".");
+        showNotice("Added and saved inventory item " + cleanId + ".");
       } catch (error) {
         showNotice(error.message + " No item was added; please try again.", true);
       }
@@ -779,17 +850,26 @@
     $("addItemBtn").addEventListener("click", addInventoryItem);
 
     $("resetBtn").addEventListener("click", () => {
-      if (!confirm("Reset the inventory to the original sample data and clear this session's audit history?")) return;
+      if (!confirm("Reset inventory to the original sample data and clear the saved audit history?")) return;
+
       inventory = cloneSampleData();
       history = [];
       addHistory("Reset inventory to the original sample dataset.");
       renderAll();
-      showNotice("Sample inventory restored. Previous session history was cleared.");
+      showNotice("Sample inventory restored. The reset and new history have been saved in this browser.");
     });
 
-    inventory = cloneSampleData();
-    renderAll();
-    addHistory("Loaded " + inventory.length + " sample inventory items.");
+    // Restore saved data, or initialize the original sample data on first use.
+    if (loadState()) {
+      renderAll();
+      showNotice("Saved inventory and audit history restored from this browser.");
+    } else {
+      inventory = cloneSampleData();
+      history = [];
+      addHistory("Loaded " + inventory.length + " sample inventory items.");
+      renderAll();
+      showNotice("Sample inventory loaded and saved in this browser.");
+    }
   </script>
 </body>
 </html>
