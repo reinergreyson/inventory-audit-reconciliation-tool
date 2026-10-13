@@ -92,6 +92,7 @@
     button:hover, .file-label:hover { filter: brightness(1.08); }
     button.secondary { background: #e9eef6; color: var(--navy); }
     button.danger { background: #fff0ef; color: var(--red); }
+
     button:focus-visible, input:focus-visible, select:focus-visible,
     .file-label:focus-within {
       outline: 3px solid #83b4ff;
@@ -102,8 +103,12 @@
       position: absolute;
       width: 1px;
       height: 1px;
-      opacity: 0;
+      padding: 0;
+      margin: -1px;
       overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .toolbar .spacer { flex: 1; }
@@ -132,6 +137,7 @@
     .kpi-sub { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
 
     .panel { padding: 20px; margin-bottom: 22px; }
+
     .panel-heading {
       display: flex;
       justify-content: space-between;
@@ -395,9 +401,7 @@
     let inventory = [];
     let history = [];
 
-    // Store this project's data under a dedicated browser-storage key.
     const STORAGE_KEY = "inventoryAuditReconciliationState";
-
     const $ = (id) => document.getElementById(id);
 
     function saveState() {
@@ -416,7 +420,6 @@
     function loadState() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
-
         if (!saved) return false;
 
         const parsed = JSON.parse(saved);
@@ -429,7 +432,6 @@
           return false;
         }
 
-        // Validate the stored inventory before using it.
         const validInventory = parsed.inventory.every(item =>
           item &&
           typeof item.item_id === "string" &&
@@ -464,7 +466,14 @@
 
     function safeNumber(value, fieldName) {
       const number = Number(value);
-      if (value === "" || value === null || value === undefined || !Number.isFinite(number) || number < 0 || !Number.isInteger(number)) {
+      if (
+        value === "" ||
+        value === null ||
+        value === undefined ||
+        !Number.isFinite(number) ||
+        number < 0 ||
+        !Number.isInteger(number)
+      ) {
         throw new Error(fieldName + " must be a whole number greater than or equal to zero.");
       }
       return number;
@@ -480,7 +489,9 @@
 
     function currentStatus(item) {
       if (item.audit_status === "Resolved") return "Resolved";
-      if (hasDiscrepancy(item) && item.audit_status !== "Reviewed") return "Review Required";
+      if (hasDiscrepancy(item) && item.audit_status !== "Reviewed") {
+        return "Review Required";
+      }
       return item.audit_status || "Pending";
     }
 
@@ -492,9 +503,7 @@
       history.unshift({ time: new Date().toLocaleString(), message });
       history = history.slice(0, 200);
 
-      // Save both inventory and history after each recorded action.
       const saved = saveState();
-
       renderHistory();
 
       if (!saved) {
@@ -513,20 +522,31 @@
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, char => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
       })[char]);
     }
 
     function renderKpis() {
       const total = inventory.length;
-      const review = inventory.filter(item => hasDiscrepancy(item) && currentStatus(item) !== "Resolved").length;
+      const review = inventory.filter(
+        item => hasDiscrepancy(item) && currentStatus(item) !== "Resolved"
+      ).length;
       const net = inventory.reduce((sum, item) => sum + variance(item), 0);
-      const completed = inventory.filter(item => ["Reviewed", "Resolved"].includes(currentStatus(item))).length;
+      const completed = inventory.filter(
+        item => ["Reviewed", "Resolved"].includes(currentStatus(item))
+      ).length;
+
       $("totalItems").textContent = total;
       $("reviewItems").textContent = review;
       $("netVariance").textContent = net > 0 ? "+" + net : String(net);
-      $("netVariance").className = "kpi-value " + (net > 0 ? "positive" : net < 0 ? "negative" : "");
-      $("completion").textContent = (total ? Math.round(completed / total * 100) : 0) + "%";
+      $("netVariance").className =
+        "kpi-value " + (net > 0 ? "positive" : net < 0 ? "negative" : "");
+      $("completion").textContent =
+        (total ? Math.round(completed / total * 100) : 0) + "%";
     }
 
     function renderInventory() {
@@ -535,25 +555,31 @@
       const filter = $("varianceFilter").value;
 
       const filtered = inventory.filter(item => {
-        const matchesSearch = [item.item_id, item.item_name, item.location].some(value =>
-          String(value).toLowerCase().includes(search)
+        const matchesSearch = [item.item_id, item.item_name, item.location].some(
+          value => String(value).toLowerCase().includes(search)
         );
+
         const matchesStatus = status === "all" || currentStatus(item) === status;
         const diff = variance(item);
+
         const matchesVariance =
           filter === "all" ||
           (filter === "discrepancy" && diff !== 0) ||
           (filter === "zero" && diff === 0) ||
           (filter === "shortage" && diff < 0) ||
           (filter === "overage" && diff > 0);
+
         return matchesSearch && matchesStatus && matchesVariance;
       });
 
-      $("visibleCount").textContent = filtered.length + " of " + inventory.length + " items shown";
+      $("visibleCount").textContent =
+        filtered.length + " of " + inventory.length + " items shown";
+
       const body = $("inventoryBody");
 
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty" colspan="9">No inventory items match these filters.</td></tr>';
+        body.innerHTML =
+          '<tr><td class="empty" colspan="9">No inventory items match these filters.</td></tr>';
         renderKpis();
         return;
       }
@@ -563,7 +589,9 @@
         const diffClass = diff > 0 ? "positive" : diff < 0 ? "negative" : "zero";
         const flag = hasDiscrepancy(item) ? "Review Required" : "No Discrepancy";
         const statusNow = currentStatus(item);
-        const statusCss = statusNow === "Resolved" ? "resolved" :
+
+        const statusCss =
+          statusNow === "Resolved" ? "resolved" :
           statusNow === "Reviewed" ? "clear" :
           statusNow === "Review Required" ? "review" : "open";
 
@@ -573,15 +601,21 @@
           <td>${escapeHtml(item.location)}</td>
           <td class="numeric">${item.expected_qty}</td>
           <td class="numeric">
-            <input class="inline-input counted-input" aria-label="Counted quantity for ${escapeHtml(item.item_id)}"
-              type="number" min="0" step="1" value="${item.counted_qty}" data-id="${escapeHtml(item.item_id)}" style="width:92px">
+            <input class="inline-input counted-input"
+              aria-label="Counted quantity for ${escapeHtml(item.item_id)}"
+              type="number" min="0" step="1"
+              value="${item.counted_qty}"
+              data-id="${escapeHtml(item.item_id)}"
+              style="width:92px">
           </td>
           <td class="numeric ${diffClass}">${diff > 0 ? "+" : ""}${diff}</td>
           <td><span class="status ${flagClass(item)}">${flag}</span></td>
           <td><span class="status ${statusCss}">${statusNow}</span></td>
           <td><div class="row-actions">
-            <button type="button" class="secondary review-btn" data-id="${escapeHtml(item.item_id)}">Mark reviewed</button>
-            <button type="button" class="resolve-btn" data-id="${escapeHtml(item.item_id)}">Resolve</button>
+            <button type="button" class="secondary review-btn"
+              data-id="${escapeHtml(item.item_id)}">Mark reviewed</button>
+            <button type="button" class="resolve-btn"
+              data-id="${escapeHtml(item.item_id)}">Resolve</button>
           </div></td>
         </tr>`;
       }).join("");
@@ -591,8 +625,10 @@
 
     function renderHistory() {
       const list = $("historyList");
+
       if (!history.length) {
-        list.innerHTML = '<p class="empty">No audit actions recorded yet. Changes, reviews, and resolutions will appear here.</p>';
+        list.innerHTML =
+          '<p class="empty">No audit actions recorded yet. Changes, reviews, and resolutions will appear here.</p>';
         return;
       }
 
@@ -631,19 +667,29 @@
       if (previous === count) return;
 
       item.counted_qty = count;
+
       if (item.audit_status === "Reviewed" || item.audit_status === "Resolved") {
         item.audit_status = "Pending";
       }
-      addHistory(`${item.item_id} (${item.item_name}): counted quantity changed from ${previous} to ${count}; variance is now ${variance(item)}.`);
-      showNotice("Count updated and saved in this browser. Discrepancy calculations and audit status have been refreshed.");
+
+      addHistory(
+        `${item.item_id} (${item.item_name}): counted quantity changed from ${previous} to ${count}; variance is now ${variance(item)}.`
+      );
+
+      showNotice(
+        "Count updated and saved in this browser. Discrepancy calculations and audit status have been refreshed."
+      );
       renderAll();
     }
 
     function markReviewed(id) {
       const item = findItem(id);
       if (!item) return;
+
       item.audit_status = "Reviewed";
-      addHistory(`${item.item_id} (${item.item_name}) marked reviewed. Variance: ${variance(item)}.`);
+      addHistory(
+        `${item.item_id} (${item.item_name}) marked reviewed. Variance: ${variance(item)}.`
+      );
       showNotice(item.item_id + " marked reviewed and saved.");
       renderAll();
     }
@@ -651,8 +697,11 @@
     function resolveItem(id) {
       const item = findItem(id);
       if (!item) return;
+
       item.audit_status = "Resolved";
-      addHistory(`${item.item_id} (${item.item_name}) marked resolved. Final recorded variance: ${variance(item)}.`);
+      addHistory(
+        `${item.item_id} (${item.item_name}) marked resolved. Final recorded variance: ${variance(item)}.`
+      );
       showNotice(item.item_id + " marked resolved and saved.");
       renderAll();
     }
@@ -662,36 +711,63 @@
       return '"' + text.replace(/"/g, '""') + '"';
     }
 
+    // Updated download handling: give the browser time to start the download.
     function downloadCsv(filename, rows) {
       const csv = rows.map(row => row.map(csvEscape).join(",")).join("\r\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob(["\uFEFF" + csv], {
+        type: "text/csv;charset=utf-8;"
+      });
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
+
       link.href = url;
       link.download = filename;
+      link.style.display = "none";
+
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+
+      // Release the temporary URL after the download has had time to start.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function exportReport() {
       const rows = [
-        ["item_id", "item_name", "location", "expected_qty", "counted_qty", "variance", "review_flag", "audit_status"],
+        [
+          "item_id",
+          "item_name",
+          "location",
+          "expected_qty",
+          "counted_qty",
+          "variance",
+          "review_flag",
+          "audit_status"
+        ],
         ...inventory.map(item => [
-          item.item_id, item.item_name, item.location, item.expected_qty,
-          item.counted_qty, variance(item),
+          item.item_id,
+          item.item_name,
+          item.location,
+          item.expected_qty,
+          item.counted_qty,
+          variance(item),
           hasDiscrepancy(item) ? "Review Required" : "No Discrepancy",
           currentStatus(item)
         ])
       ];
+
       downloadCsv("inventory-audit-report.csv", rows);
       addHistory("Exported inventory audit report CSV (" + inventory.length + " items).");
       showNotice("Inventory report exported as CSV.");
     }
 
     function exportAuditHistory() {
-      const rows = [["timestamp", "action"], ...history.slice().reverse().map(entry => [entry.time, entry.message])];
+      const rows = [
+        ["timestamp", "action"],
+        ...history.slice().reverse().map(entry => [entry.time, entry.message])
+      ];
+
       downloadCsv("inventory-audit-history.csv", rows);
       showNotice("Audit history exported as CSV.");
     }
@@ -703,6 +779,7 @@
 
       for (let i = 0; i < input.length; i++) {
         const char = input[i];
+
         if (quoted) {
           if (char === '"' && input[i + 1] === '"') {
             cell += '"';
@@ -728,8 +805,10 @@
       }
 
       if (quoted) throw new Error("The CSV file contains an unclosed quoted field.");
+
       row.push(cell.replace(/\r$/, ""));
       if (row.some(value => value.trim() !== "")) rows.push(row);
+
       return rows;
     }
 
@@ -738,40 +817,74 @@
 
       try {
         const rows = parseCsv(await file.text());
-        if (rows.length < 2) throw new Error("The CSV file must contain a header row and at least one inventory item.");
+
+        if (rows.length < 2) {
+          throw new Error("The CSV file must contain a header row and at least one inventory item.");
+        }
 
         const headers = rows[0].map(header => header.trim().toLowerCase());
-        const required = ["item_id", "item_name", "location", "expected_qty", "counted_qty"];
+        const required = [
+          "item_id",
+          "item_name",
+          "location",
+          "expected_qty",
+          "counted_qty"
+        ];
+
         const missing = required.filter(name => !headers.includes(name));
-        if (missing.length) throw new Error("Missing required CSV columns: " + missing.join(", "));
+
+        if (missing.length) {
+          throw new Error("Missing required CSV columns: " + missing.join(", "));
+        }
 
         const index = name => headers.indexOf(name);
         const ids = new Set();
 
         const imported = rows.slice(1).map((row, rowIndex) => {
           const value = name => (row[index(name)] ?? "").trim();
+
           const item = {
             item_id: value("item_id"),
             item_name: value("item_name"),
             location: value("location"),
-            expected_qty: safeNumber(value("expected_qty"), "Expected quantity on CSV row " + (rowIndex + 2)),
-            counted_qty: safeNumber(value("counted_qty"), "Counted quantity on CSV row " + (rowIndex + 2)),
+            expected_qty: safeNumber(
+              value("expected_qty"),
+              "Expected quantity on CSV row " + (rowIndex + 2)
+            ),
+            counted_qty: safeNumber(
+              value("counted_qty"),
+              "Counted quantity on CSV row " + (rowIndex + 2)
+            ),
             audit_status: "Pending"
           };
 
           if (!item.item_id || !item.item_name || !item.location) {
-            throw new Error("CSV row " + (rowIndex + 2) + " is missing an item ID, item name, or location.");
+            throw new Error(
+              "CSV row " + (rowIndex + 2) +
+              " is missing an item ID, item name, or location."
+            );
           }
-          if (ids.has(item.item_id)) throw new Error("Duplicate item ID in CSV: " + item.item_id);
+
+          if (ids.has(item.item_id)) {
+            throw new Error("Duplicate item ID in CSV: " + item.item_id);
+          }
+
           ids.add(item.item_id);
           return item;
         });
 
-        if (!imported.length) throw new Error("No inventory items were found in the CSV.");
+        if (!imported.length) {
+          throw new Error("No inventory items were found in the CSV.");
+        }
+
         inventory = imported;
         addHistory("Imported " + imported.length + " inventory items from " + file.name + ".");
         renderAll();
-        showNotice("Successfully imported " + imported.length + " inventory items. Your imported inventory is saved in this browser.");
+
+        showNotice(
+          "Successfully imported " + imported.length +
+          " inventory items. Your imported inventory is saved in this browser."
+        );
       } catch (error) {
         showNotice("Import failed: " + error.message, true);
       } finally {
@@ -782,11 +895,14 @@
     function addInventoryItem() {
       const itemId = prompt("Enter a unique item ID (example: INV-2001):");
       if (itemId === null) return;
+
       const cleanId = itemId.trim();
+
       if (!cleanId) {
         showNotice("Item ID cannot be blank.", true);
         return;
       }
+
       if (findItem(cleanId)) {
         showNotice("That item ID already exists. Choose a unique ID.", true);
         return;
@@ -794,6 +910,7 @@
 
       const name = prompt("Enter the item name:");
       if (name === null) return;
+
       if (!name.trim()) {
         showNotice("Item name cannot be blank.", true);
         return;
@@ -801,14 +918,22 @@
 
       const location = prompt("Enter the storage location:");
       if (location === null) return;
+
       if (!location.trim()) {
         showNotice("Location cannot be blank.", true);
         return;
       }
 
-      const expectedRaw = prompt("Enter the expected quantity (whole number, 0 or higher):", "0");
+      const expectedRaw = prompt(
+        "Enter the expected quantity (whole number, 0 or higher):",
+        "0"
+      );
       if (expectedRaw === null) return;
-      const countedRaw = prompt("Enter the counted quantity (whole number, 0 or higher):", expectedRaw);
+
+      const countedRaw = prompt(
+        "Enter the counted quantity (whole number, 0 or higher):",
+        expectedRaw
+      );
       if (countedRaw === null) return;
 
       try {
@@ -820,6 +945,7 @@
           counted_qty: safeNumber(countedRaw, "Counted quantity"),
           audit_status: "Pending"
         });
+
         addHistory("Added inventory item " + cleanId + " (" + name.trim() + ").");
         renderAll();
         showNotice("Added and saved inventory item " + cleanId + ".");
@@ -837,6 +963,7 @@
     $("inventoryBody").addEventListener("click", event => {
       const reviewButton = event.target.closest(".review-btn");
       const resolveButton = event.target.closest(".resolve-btn");
+
       if (reviewButton) markReviewed(reviewButton.dataset.id);
       if (resolveButton) resolveItem(resolveButton.dataset.id);
     });
@@ -844,22 +971,31 @@
     $("searchInput").addEventListener("input", renderInventory);
     $("statusFilter").addEventListener("change", renderInventory);
     $("varianceFilter").addEventListener("change", renderInventory);
-    $("csvFile").addEventListener("change", event => importCsv(event.target.files[0]));
+
+    $("csvFile").addEventListener("change", event => {
+      importCsv(event.target.files[0]);
+    });
+
     $("exportCsvBtn").addEventListener("click", exportReport);
     $("exportHistoryBtn").addEventListener("click", exportAuditHistory);
     $("addItemBtn").addEventListener("click", addInventoryItem);
 
     $("resetBtn").addEventListener("click", () => {
-      if (!confirm("Reset inventory to the original sample data and clear the saved audit history?")) return;
+      if (!confirm(
+        "Reset inventory to the original sample data and clear the saved audit history?"
+      )) return;
 
       inventory = cloneSampleData();
       history = [];
       addHistory("Reset inventory to the original sample dataset.");
       renderAll();
-      showNotice("Sample inventory restored. The reset and new history have been saved in this browser.");
+
+      showNotice(
+        "Sample inventory restored. The reset and new history have been saved in this browser."
+      );
     });
 
-    // Restore saved data, or initialize the original sample data on first use.
+    // Restore saved data, or initialize sample data on first use.
     if (loadState()) {
       renderAll();
       showNotice("Saved inventory and audit history restored from this browser.");
